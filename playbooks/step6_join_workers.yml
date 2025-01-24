@@ -1,0 +1,61 @@
+- name: Join Kubernetes cluster
+  hosts: workers
+  become: true
+  tasks:
+    - name: Fetch kubeadm join command from master
+      shell: cat /tmp/kubeadm_join_command.txt
+      delegate_to: master
+      register: join_command_output
+
+    - name: Write the kubeadm join command to a local file on workers
+      copy:
+        content: "{{ join_command_output.stdout }}"
+        dest: /tmp/kubeadm_join_command.txt
+        mode: '0755'
+
+    - name: Verify the kubeadm join command file exists on workers
+      stat:
+        path: /tmp/kubeadm_join_command.txt
+      register: join_file_status
+
+    - name: Fail if join command file is missing on workers
+      fail:
+        msg: "The kubeadm join command file was not copied to the worker node."
+      when: not join_file_status.stat.exists
+
+    - name: Reset the worker node (if necessary)
+      shell: |
+        kubeadm reset -f
+        # Clean up residual files if necessary
+        rm -rf /etc/kubernetes/ /var/lib/kubelet/ /etc/cni/ /opt/cni/
+        ip link delete cni0 || true
+        ip link delete flannel.1 || true
+      ignore_errors: true
+      register: reset_output
+
+    - name: Log reset output for debugging
+      debug:
+        msg: "{{ reset_output.stdout }}"
+
+    - name: Ensure kubelet and other related services are stopped
+      service:
+        name: kubelet
+        state: stopped
+      ignore_errors: true
+
+    - name: Re-run the kubeadm join command
+      command: bash /tmp/kubeadm_join_command.txt
+      register: join_command_result
+      retries: 3
+      delay: 10
+      until: join_command_result.rc == 0
+
+    - name: Check if node joined successfully
+      debug:
+        msg: "Node joined successfully"
+      when: join_command_result.rc == 0
+
+    - name: Fail if join command fails after retries
+      fail:
+        msg: "The kubeadm join command failed after retries."
+      when: join_command_result.rc != 0

@@ -1,0 +1,45 @@
+# initialize_master.yml
+- name: Initialize Kubernetes master node
+  hosts: master  # Replace with your actual master node group
+  become: true
+  tasks:
+    - name: Initialize the Kubernetes cluster with containerd runtime
+      command: kubeadm init --pod-network-cidr=10.200.0.0/16 --apiserver-advertise-address=192.168.0.196
+      register: kubeadm_init
+      ignore_errors: true  # Ignore errors for already existing components
+
+    - name: Save kubeadm join command for worker nodes
+      set_fact:
+        kubeadm_join_command: "{{ (kubeadm_init.stdout | regex_search('kubeadm join.*')) | regex_replace('\\\\', '') + ' ' + (kubeadm_init.stdout | regex_search('--discovery-.*')) }}"
+      when: kubeadm_init.rc == 0
+    
+    - name: Save kubeadm join command to a file
+      copy:
+        content: "{{ kubeadm_join_command }}"
+        dest: /tmp/kubeadm_join_command.txt
+        force: true
+      when: kubeadm_init.rc == 0
+
+    - name: Copy Kubeconfig to user
+      become_method: sudo
+      become_flags: "-E"
+      shell: |
+        mkdir -p $HOME/.kube
+        cp -f /etc/kubernetes/admin.conf $HOME/.kube/config
+        chown $(id -u):$(id -g) $HOME/.kube/config
+        chmod 644 $HOME/.kube/config
+      when: kubeadm_init.rc == 0
+
+    - name: Install Flannel CNI for network
+      become_method: sudo
+      become_flags: "-E"
+      shell: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+      when: kubeadm_init.rc == 0
+
+    - name: Output kubeadm join command
+      debug:
+        msg: "Run this on worker nodes: {{ kubeadm_join_command }}"
+      when: kubeadm_init.rc == 0
+
+
+# kubeadm init --pod-network-cidr=10.200.0.0/16 --apiserver-advertise-address=192.168.0.196

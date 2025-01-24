@@ -1,0 +1,41 @@
+- name: Configure containerd with systemd cgroup and updated sandbox image
+  hosts: all
+  become: true
+  tasks:
+
+    - name: Generate default containerd configuration
+      command: containerd config default
+      register: containerd_config_default
+
+    - name: Ensure containerd configuration directory exists
+      file:
+        path: /etc/containerd
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Write default containerd configuration to file
+      copy:
+        content: "{{ containerd_config_default.stdout }}"
+        dest: /etc/containerd/config.toml
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Modify containerd configuration to use systemd cgroup
+      replace:
+        path: /etc/containerd/config.toml
+        regexp: 'SystemdCgroup\s*=\s*false'
+        replace: 'SystemdCgroup = true'
+
+    - name: Update sandbox image in containerd configuration
+      replace:
+        path: /etc/containerd/config.toml
+        regexp: 'sandbox_image\s*=\s*"[^"]+"'
+        replace: 'sandbox_image = "registry.k8s.io/pause:3.10"'
+
+    - name: Restart containerd service
+      service:
+        name: containerd
+        state: restarted

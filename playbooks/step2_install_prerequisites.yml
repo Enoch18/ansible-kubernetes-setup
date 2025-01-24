@@ -1,0 +1,62 @@
+- name: Install prerequisites for Kubernetes
+  hosts: all
+  become: true
+  tasks:
+    - name: Install basic dependencies
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gpg
+          - software-properties-common
+        state: present
+        update_cache: yes
+
+    - name: Add Kubernetes apt GPG key if not present
+      shell: |
+        if [ ! -f /etc/apt/keyrings/kubernetes-apt-keyring.gpg ]; then
+          curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.32/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+        else
+          echo "Kubernetes GPG key already added"
+        fi
+      args:
+        executable: /bin/bash
+
+    - name: Add Kubernetes apt repository if not present
+      shell: |
+        if ! grep -q "pkgs.k8s.io" /etc/apt/sources.list.d/kubernetes.list; then
+          echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.32/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list
+        else
+          echo "Kubernetes repository already added"
+        fi
+      args:
+        executable: /bin/bash
+
+    - name: Add Docker apt GPG key if not present
+      shell: |
+        if [ ! -f /usr/share/keyrings/docker-archive-keyring.gpg ]; then
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        else
+          echo "Docker GPG key already added"
+        fi
+      args:
+        executable: /bin/bash
+
+    - name: Add Docker apt repository if not present
+      shell: |
+        if ! grep -q "download.docker.com" /etc/apt/sources.list.d/docker.list; then
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        else
+          echo "Docker repository already added"
+        fi
+      args:
+        executable: /bin/bash
+
+    - name: Install Docker and and containerd
+      apt:
+        name:
+          - docker-ce
+          - containerd.io
+        state: present
+        update_cache: yes
