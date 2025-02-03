@@ -4,7 +4,7 @@
   become: true
   tasks:
     - name: Initialize the Kubernetes cluster with containerd runtime
-      command: kubeadm init --pod-network-cidr=10.200.0.0/16 --apiserver-advertise-address=192.168.0.196
+      command: kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address=172.16.219.136
       register: kubeadm_init
       ignore_errors: true  # Ignore errors for already existing components
 
