@@ -40,6 +40,3 @@
       debug:
         msg: "Run this on worker nodes: {{ kubeadm_join_command }}"
       when: kubeadm_init.rc == 0
-
-
-# kubeadm init --pod-network-cidr=10.200.0.0/16 --apiserver-advertise-address=192.168.0.196
