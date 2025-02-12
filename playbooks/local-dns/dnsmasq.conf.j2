@@ -1,0 +1,13 @@
+# Listen only on the LAN interface (change eth0 if needed)
+interface=ens160  
+
+# Local domain resolution
+address=/ses-connect.ses/172.16.219.136
+
+# Cache DNS for faster response
+cache-size=1000
+
+# No DNS forwarding
+no-resolv
+server=8.8.8.8
+server=8.8.4.4

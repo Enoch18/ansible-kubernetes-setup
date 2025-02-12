@@ -53,7 +53,32 @@
       args:
         executable: /bin/bash
 
-    - name: Install Docker and and containerd
+    - name: Kill any running apt processes to release dpkg lock
+      shell: sudo killall apt apt-get
+      args:
+        executable: /bin/bash
+      failed_when: false
+
+    - name: Remove apt lock files
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /var/lib/apt/lists/lock
+        - /var/cache/apt/archives/lock
+        - /var/lib/dpkg/lock
+        - /var/lib/dpkg/lock-frontend
+
+    - name: Reconfigure dpkg to ensure packages are configured
+      shell: sudo dpkg --configure -a
+      args:
+        executable: /bin/bash
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install Docker and containerd
       apt:
         name:
           - docker-ce

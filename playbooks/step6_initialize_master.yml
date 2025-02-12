@@ -1,10 +1,9 @@
-# initialize_master.yml
 - name: Initialize Kubernetes master node
   hosts: master  # Replace with your actual master node group
   become: true
   tasks:
     - name: Initialize the Kubernetes cluster with containerd runtime
-      command: kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address=172.16.219.136
+      command: kubeadm init --pod-network-cidr=192.168.0.0/16 --apiserver-advertise-address=172.16.219.136
       register: kubeadm_init
       ignore_errors: true  # Ignore errors for already existing components
 
@@ -30,10 +29,10 @@
         chmod 644 $HOME/.kube/config
       when: kubeadm_init.rc == 0
 
-    - name: Install Flannel CNI for network
+    - name: Install Calico CNI for networking
       become_method: sudo
       become_flags: "-E"
-      shell: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+      shell: kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/calico.yaml
       when: kubeadm_init.rc == 0
 
     - name: Output kubeadm join command
