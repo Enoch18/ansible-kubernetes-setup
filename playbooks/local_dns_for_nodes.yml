@@ -4,7 +4,7 @@
   become: true
   tasks:
 
-    - name: Ensure DNS settings in systemd-resolved.conf
+    - name: Ensure DNS settings in systemd-resolved.conf are correct
       lineinfile:
         path: /etc/systemd/resolved.conf
         regexp: '^DNS='
@@ -14,13 +14,11 @@
       notify:
         - Restart systemd-resolved
 
-    - name: Add 10.10.100.105 as nameserver to /etc/resolv.conf
-      lineinfile:
-        path: /etc/resolv.conf
-        line: 'nameserver 10.10.100.105'
-        state: present
-        insertafter: EOF
-        create: yes
+    - name: Ensure /etc/resolv.conf points to systemd stub resolver
+      file:
+        src: /run/systemd/resolve/stub-resolv.conf
+        dest: /etc/resolv.conf
+        state: link   # Ensure the symlink points to the systemd stub resolver
 
     - name: Ensure systemd-resolved is enabled and started
       systemd:
@@ -28,11 +26,14 @@
         enabled: yes
         state: started
 
-    - name: Ensure /etc/resolv.conf is correctly symlinked to systemd stub resolver
-      file:
-        src: /run/systemd/resolve/stub-resolv.conf
-        dest: /etc/resolv.conf
-        state: link   # Ensure the symlink points to the systemd stub resolver
+    - name: Append 10.10.100.105 as a nameserver to /etc/resolv.conf if not present
+      blockinfile:
+        path: /etc/resolv.conf
+        block: |
+          nameserver 10.10.100.105
+        insertafter: EOF
+        create: yes
+        state: present
 
   handlers:
     - name: Restart systemd-resolved
