@@ -1,0 +1,16 @@
+---
+- name: Install MySQL and MariaDB client packages
+  hosts: all
+  become: true
+  tasks:
+    - name: Install mysql-client-core-8.0
+      apt:
+        name: mysql-client-core-8.0
+        state: present
+        update_cache: yes
+
+    - name: Install mariadb-client-core-10.6
+      apt:
+        name: mariadb-client-core-10.6
+        state: present
+        update_cache: yes
